@@ -1,6 +1,7 @@
-.PHONY: build run test clean dev loadtest quicktest logs db-connect stats health help
+.PHONY: build run clean dev loadtest logs db-connect stats health help
+.PHONY: lint lint-fix lint-handlers lint-services lint-models lint-repositories setup-linter
 
-# Основные команды - запускают только app и postgres
+# ==================== DOCKER COMMANDS ====================
 build:
 	docker-compose build
 
@@ -8,7 +9,7 @@ run:
 	docker-compose up
 
 dev:
-	docker-compose up -d --build
+	docker-compose up --build
 
 clean:
 	docker-compose down -v
@@ -29,25 +30,78 @@ stats:
 health:
 	curl http://localhost:8080/health
 
-# Локальная разработка (без Docker)
 local-build:
 	go build -o server ./cmd/server
 
 local-run: local-build
 	DB_HOST=localhost DB_PORT=5432 DB_USER=postgres DB_PASSWORD=password DB_NAME=pr_reviewer ./server
 
-# Помощь
+# ==================== CODE QUALITY COMMANDS ====================
+
+setup-linter:
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+
+lint:
+	golangci-lint run ./...
+
+lint-fix:
+	golangci-lint run ./... --fix
+
+lint-handlers:
+	golangci-lint run ./internal/handlers/...
+
+lint-services:
+	golangci-lint run ./internal/service/...
+
+lint-models:
+	golangci-lint run ./internal/models/...
+
+lint-repositories:
+	golangci-lint run ./internal/repository/...
+
+lint-fast:
+	golangci-lint run ./... --fast
+
+fmt:
+	go fmt ./...
+
+imports:
+	goimports -l -w .
+
+style: fmt imports lint
+
+pre-commit: lint-fix test
+
 help:
 	@echo "Available commands:"
+	@echo ""
+	@echo "=== DOCKER COMMANDS ==="
 	@echo "  build     - Собрать Docker образы"
-	@echo "  run       - Запустить основной проект (app + postgres)"
+	@echo "  run       - Запустить основной проект"
 	@echo "  dev       - Запустить с пересборкой"
-	@echo "  loadtest  - Нагрузочное тестирование (отдельная команда)"
-	@echo "  quicktest - Быстрое нагрузочное тестирование через k6"
-	@echo "  test      - Запустить unit-тесты"
+	@echo "  loadtest  - Нагрузочное тестирование"
 	@echo "  logs      - Просмотр логов приложения"
 	@echo "  db-connect- Подключиться к БД"
 	@echo "  stats     - Показать статистику"
 	@echo "  health    - Проверить health check"
 	@echo "  clean     - Остановить и очистить"
+	@echo ""
+	@echo "=== CODE QUALITY COMMANDS ==="
+	@echo "  setup-linter - Установить линтер"
+	@echo "  lint        - Проверить весь код"
+	@echo "  lint-fix    - Исправить автоматически исправимые проблемы"
+	@echo "  lint-handlers - Линтинг только обработчиков HTTP"
+	@echo "  lint-services - Линтинг только сервисов"
+	@echo "  lint-models - Линтинг только моделей"
+	@echo "  lint-repositories - Линтинг только репозиториев"
+	@echo "  lint-fast   - Быстрый линтинг (только критические проверки)"
+	@echo "  fmt         - Форматировать код"
+	@echo "  imports     - Организовать импорты"
+	@echo "  style       - Полная проверка стиля (fmt + imports + lint)"
+	@echo "  pre-commit  - Запустить проверки перед коммитом"
+	@echo ""
+	@echo "=== LOCAL DEVELOPMENT ==="
+	@echo "  local-build - Собрать приложение локально"
+	@echo "  local-run   - Запустить приложение локально"
+	@echo ""
 	@echo "  help      - Показать эту справку"
